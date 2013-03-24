@@ -406,9 +406,8 @@ final class PhabricatorRepositoryEditController
       if ($is_git) {
         $instructions = hsprintf(
           'Enter the URI to clone this repository from. It should look like '.
-          '<tt>git@github.com:example/example.git</tt>, '.
-          '<tt>ssh://user@host.com/git/example.git</tt>, or '.
-          '<tt>file:///local/path/to/repo</tt>');
+          '<tt>gitolite3@git.atlanticbt.com:atlanticbt-01/example.git</tt> or '.
+          '<tt>git@github.com:example/example.git</tt>, ');
       } else if ($is_mercurial) {
         $instructions = hsprintf(
           'Enter the URI to clone this repository from. It should look '.
@@ -543,7 +542,10 @@ final class PhabricatorRepositoryEditController
           ->setName('path')
           ->setLabel('Local Path')
           ->setValue($repository->getDetail('local-path', $default_local_path))
-          ->setError($e_path));
+          ->setError($e_path)
+          ->setCaption(hsprintf(
+            'Please list the Atlantic BT git repository name here '.
+            'Example: <tt>atlanticbt-01/example</tt>')));
     } else if ($is_svn) {
       $inset->appendChild(hsprintf(
         '<p class="aphront-form-instructions">If you only want to parse one '.
