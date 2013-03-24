@@ -19,7 +19,7 @@ final class PhabricatorApplicationRepositories extends PhabricatorApplication {
   }
 
   public function getApplicationGroup() {
-    return self::GROUP_ADMIN;
+    return self::GROUP_ORGANIZATION;
   }
 
   public function getRoutes() {

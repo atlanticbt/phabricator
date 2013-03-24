@@ -174,6 +174,7 @@ final class PhabricatorRepositoryEditController
   private function processTrackingRequest() {
     $request = $this->getRequest();
     $user = $request->getUser();
+    $is_admin = $user->getIsAdmin();
     $repository = $this->repository;
     $repository_id = $repository->getID();
 
@@ -447,38 +448,40 @@ final class PhabricatorRepositoryEditController
         pht('Permit users to view the username of this connection.'),
         $repository->getDetail('show-user') == 1));
 
-    $inset->appendChild(hsprintf(
-      '<div class="aphront-form-instructions">'.
-        'If you want to connect to this repository over SSH, enter the '.
-        'username and private key to use. You can leave these fields blank if '.
-        'the repository does not use SSH.'.
-      '</div>'));
+    if ($is_admin) {
+        $inset->appendChild(hsprintf(
+          '<div class="aphront-form-instructions">'.
+            'If you want to connect to this repository over SSH, enter the '.
+            'username and private key to use. You can leave these fields blank if '.
+            'the repository does not use SSH.'.
+          '</div>'));
 
-    $inset
-      ->appendChild(
-        id(new AphrontFormTextControl())
-          ->setName('ssh-login')
-          ->setLabel('SSH User')
-          ->setValue($repository->getDetail('ssh-login')))
-      ->appendChild(
-        id(new AphrontFormTextAreaControl())
-          ->setName('ssh-key')
-          ->setLabel('SSH Private Key')
-          ->setHeight(AphrontFormTextAreaControl::HEIGHT_VERY_SHORT)
-          ->setValue($repository->getDetail('ssh-key'))
-          ->setError($e_ssh_key)
-          ->setCaption(
-            hsprintf('Specify the entire private key, <em>or</em>...')))
-      ->appendChild(
-        id(new AphrontFormTextControl())
-          ->setName('ssh-keyfile')
-          ->setLabel('SSH Private Key File')
-          ->setValue($repository->getDetail('ssh-keyfile'))
-          ->setError($e_ssh_keyfile)
-          ->setCaption(
-            '...specify a path on disk where the daemon should '.
-            'look for a private key.'));
+        $inset
+          ->appendChild(
+            id(new AphrontFormTextControl())
+              ->setName('ssh-login')
+              ->setLabel('SSH User')
+              ->setValue($repository->getDetail('ssh-login')))
+          ->appendChild(
+            id(new AphrontFormTextAreaControl())
+              ->setName('ssh-key')
+              ->setLabel('SSH Private Key')
+              ->setHeight(AphrontFormTextAreaControl::HEIGHT_VERY_SHORT)
+              ->setValue($repository->getDetail('ssh-key'))
+              ->setError($e_ssh_key)
+              ->setCaption(
+                hsprintf('Specify the entire private key, <em>or</em>...')))
+          ->appendChild(
+            id(new AphrontFormTextControl())
+              ->setName('ssh-keyfile')
+              ->setLabel('SSH Private Key File')
+              ->setValue($repository->getDetail('ssh-keyfile'))
+              ->setError($e_ssh_keyfile)
+              ->setCaption(
+                '...specify a path on disk where the daemon should '.
+                'look for a private key.'));
 
+    }
     if ($has_auth_support) {
       $inset
         ->appendChild(hsprintf(
@@ -556,119 +559,123 @@ final class PhabricatorRepositoryEditController
           ->setError($e_path));
     }
 
-    if ($has_branch_filter) {
-      $branch_filter_str = implode(
-        ', ',
-        array_keys($repository->getDetail('branch-filter', array())));
-      $inset
-        ->appendChild(
-          id(new AphrontFormTextControl())
-            ->setName('branch-filter')
-            ->setLabel('Track Only')
-            ->setValue($branch_filter_str)
-            ->setCaption(hsprintf(
-              'Optional list of branches to track. Other branches will be '.
-              'completely ignored. If left empty, all branches are tracked. '.
-              'Example: <tt>master, release</tt>')));
-    }
+    if ($is_admin) {
+        if ($has_branch_filter) {
+          $branch_filter_str = implode(
+            ', ',
+            array_keys($repository->getDetail('branch-filter', array())));
+          $inset
+            ->appendChild(
+              id(new AphrontFormTextControl())
+                ->setName('branch-filter')
+                ->setLabel('Track Only')
+                ->setValue($branch_filter_str)
+                ->setCaption(hsprintf(
+                  'Optional list of branches to track. Other branches will be '.
+                  'completely ignored. If left empty, all branches are tracked. '.
+                  'Example: <tt>master, release</tt>')));
+        }
 
-    $inset
-      ->appendChild(
-        id(new AphrontFormTextControl())
-          ->setName('frequency')
-          ->setLabel('Pull Frequency')
-          ->setValue($repository->getDetail('pull-frequency', 15))
-          ->setCaption(
-            'Number of seconds daemon should sleep between requests. Larger '.
-            'numbers reduce load but also decrease responsiveness.'));
-
-    $form->appendChild($inset);
-
-    $inset = new AphrontFormInsetView();
-    $inset->setTitle('Application Configuration');
-
-    if ($has_branches) {
-      $inset
-        ->appendChild(
-          id(new AphrontFormTextControl())
-            ->setName('default-branch')
-            ->setLabel('Default Branch')
-            ->setValue($repository->getDefaultBranch())
-            ->setError($e_branch)
-            ->setCaption(
-              'Default branch to show in Diffusion.'));
-    }
-
-    $inset
-      ->appendChild(id(new AphrontFormSelectControl())
-        ->setName('autoclose')
-        ->setLabel('Autoclose')
-        ->setOptions(array(
-            'enabled'   => 'Enabled: Automatically Close Pushed Revisions',
-            'disabled'  => 'Disabled: Ignore Pushed Revisions',
-            ))
-        ->setCaption(
-          "Automatically close Differential revisions when associated commits ".
-          "are pushed to this repository.")
-        ->setValue(
-          $repository->getDetail('disable-autoclose', false)
-          ? 'disabled'
-          : 'enabled'));
-
-    if ($has_branch_filter) {
-      $close_commits_filter_str = implode(
-          ', ',
-          array_keys($repository->getDetail('close-commits-filter', array())));
-      $inset
-        ->appendChild(
-          id(new AphrontFormTextControl())
-            ->setName('close-commits-filter')
-            ->setLabel('Autoclose Branches')
-            ->setValue($close_commits_filter_str)
-            ->setCaption(
-              'Optional list of branches which can trigger autoclose. '.
-              'If left empty, all branches trigger autoclose.'));
-    }
-
-    $inset
-      ->appendChild(
-        id(new AphrontFormTextControl())
-          ->setName('default-owners-path')
-          ->setLabel('Default Owners Path')
-          ->setValue(
-            $repository->getDetail(
-              'default-owners-path',
-              '/'))
-          ->setCaption('Default path in Owners tool.'));
-
-    $inset
-      ->appendChild(
-        id(new AphrontFormSelectControl())
-          ->setName('herald-disabled')
-          ->setLabel('Herald/Feed Enabled')
-          ->setValue($repository->getDetail('herald-disabled', 0))
-          ->setOptions(
-            array(
-              0 => 'Enabled - Send Email and Publish Stories',
-              1 => 'Disabled - Do Not Send Email or Publish Stories',
-            ))
-          ->setCaption(
-            'You can disable Herald commit notifications and feed stories '.
-            'for this repository. This can be useful when initially importing '.
-            'a repository. Feed stories are never published about commits '.
-            'that are more than 24 hours old.'));
-
-    if ($is_svn) {
-      $inset
-        ->appendChild(
-          id(new AphrontFormTextControl())
-            ->setName('uuid')
-            ->setLabel('UUID')
-            ->setValue($repository->getUUID())
-            ->setCaption(hsprintf('Repository UUID from <tt>svn info</tt>.')));
+        $inset
+          ->appendChild(
+            id(new AphrontFormTextControl())
+              ->setName('frequency')
+              ->setLabel('Pull Frequency')
+              ->setValue($repository->getDetail('pull-frequency', 15))
+              ->setCaption(
+                'Number of seconds daemon should sleep between requests. Larger '.
+                'numbers reduce load but also decrease responsiveness.'));
     }
 
     $form->appendChild($inset);
+
+    if ($is_admin) {
+        $inset = new AphrontFormInsetView();
+        $inset->setTitle('Application Configuration');
+
+        if ($has_branches) {
+          $inset
+            ->appendChild(
+              id(new AphrontFormTextControl())
+                ->setName('default-branch')
+                ->setLabel('Default Branch')
+                ->setValue($repository->getDefaultBranch())
+                ->setError($e_branch)
+                ->setCaption(
+                  'Default branch to show in Diffusion.'));
+        }
+
+        $inset
+          ->appendChild(id(new AphrontFormSelectControl())
+            ->setName('autoclose')
+            ->setLabel('Autoclose')
+            ->setOptions(array(
+                'enabled'   => 'Enabled: Automatically Close Pushed Revisions',
+                'disabled'  => 'Disabled: Ignore Pushed Revisions',
+                ))
+            ->setCaption(
+              "Automatically close Differential revisions when associated commits ".
+              "are pushed to this repository.")
+            ->setValue(
+              $repository->getDetail('disable-autoclose', false)
+              ? 'disabled'
+              : 'enabled'));
+
+        if ($has_branch_filter) {
+          $close_commits_filter_str = implode(
+              ', ',
+              array_keys($repository->getDetail('close-commits-filter', array())));
+          $inset
+            ->appendChild(
+              id(new AphrontFormTextControl())
+                ->setName('close-commits-filter')
+                ->setLabel('Autoclose Branches')
+                ->setValue($close_commits_filter_str)
+                ->setCaption(
+                  'Optional list of branches which can trigger autoclose. '.
+                  'If left empty, all branches trigger autoclose.'));
+        }
+
+        $inset
+          ->appendChild(
+            id(new AphrontFormTextControl())
+              ->setName('default-owners-path')
+              ->setLabel('Default Owners Path')
+              ->setValue(
+                $repository->getDetail(
+                  'default-owners-path',
+                  '/'))
+              ->setCaption('Default path in Owners tool.'));
+
+        $inset
+          ->appendChild(
+            id(new AphrontFormSelectControl())
+              ->setName('herald-disabled')
+              ->setLabel('Herald/Feed Enabled')
+              ->setValue($repository->getDetail('herald-disabled', 0))
+              ->setOptions(
+                array(
+                  0 => 'Enabled - Send Email and Publish Stories',
+                  1 => 'Disabled - Do Not Send Email or Publish Stories',
+                ))
+              ->setCaption(
+                'You can disable Herald commit notifications and feed stories '.
+                'for this repository. This can be useful when initially importing '.
+                'a repository. Feed stories are never published about commits '.
+                'that are more than 24 hours old.'));
+
+        if ($is_svn) {
+          $inset
+            ->appendChild(
+              id(new AphrontFormTextControl())
+                ->setName('uuid')
+                ->setLabel('UUID')
+                ->setValue($repository->getUUID())
+                ->setCaption(hsprintf('Repository UUID from <tt>svn info</tt>.')));
+        }
+
+        $form->appendChild($inset);
+    }
 
     $form
       ->appendChild(

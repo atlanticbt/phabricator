@@ -4,7 +4,7 @@ abstract class PhabricatorRepositoryController extends PhabricatorController {
 
   public function shouldRequireAdmin() {
     // Most of these controllers are admin-only.
-    return true;
+    return false;
   }
 
   public function buildStandardPageResponse($view, array $data) {
