@@ -80,7 +80,7 @@ final class PhabricatorRepositoryListController
         true,
         true,
         true,
-        $is_admin,
+        true,
         $is_admin,
       ));
 

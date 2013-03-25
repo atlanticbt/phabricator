@@ -215,7 +215,14 @@ final class PhabricatorRepositoryEditController
       $repository->setDetail('tracking-enabled', $tracking);
       $repository->setDetail('remote-uri', $request->getStr('uri'));
       if ($has_local) {
-        $repository->setDetail('local-path', $request->getStr('path'));
+        if ($is_admin) {
+            $local_path = $request->getStr('path');
+        } else {
+            $local_path = '';
+            $default = PhabricatorEnv::getEnvConfig('repository.default-local-path');
+            $local_path = $default.strtolower($repository->getCallsign());
+        }
+        $repository->setDetail('local-path', $local_path);
       }
 
       if ($has_branch_filter) {
@@ -519,49 +526,46 @@ final class PhabricatorRepositoryEditController
 
     $form->appendChild($inset);
 
-    $inset = new AphrontFormInsetView();
-    $inset->setTitle('Repository Information');
-
-    if ($has_local) {
-      $default_local_path = '';
-      $default =
-        PhabricatorEnv::getEnvConfig('repository.default-local-path');
-      if (!$repository->getDetail('remote-uri') && $default) {
-        $default_local_path = $default.strtolower($repository->getCallsign());
-      }
-      $inset->appendChild(hsprintf(
-        '<p class="aphront-form-instructions">Select a path on local disk '.
-        'which the daemons should <tt>%s</tt> the repository into. This must '.
-        'be readable and writable by the daemons, and readable by the '.
-        'webserver. The daemons will <tt>%s</tt> and keep this repository up '.
-        'to date.</p>',
-        $clone_command,
-        $fetch_command));
-      $inset->appendChild(
-        id(new AphrontFormTextControl())
-          ->setName('path')
-          ->setLabel('Local Path')
-          ->setValue($repository->getDetail('local-path', $default_local_path))
-          ->setError($e_path)
-          ->setCaption(hsprintf(
-            'Please list the Atlantic BT git repository name here '.
-            'Example: <tt>atlanticbt-01/example</tt>')));
-    } else if ($is_svn) {
-      $inset->appendChild(hsprintf(
-        '<p class="aphront-form-instructions">If you only want to parse one '.
-        'subpath of the repository, specify it here, relative to the '.
-        'repository root (e.g., <tt>trunk/</tt> or <tt>projects/wheel/</tt>). '.
-        'If you want to parse multiple subdirectories, create a separate '.
-        'Phabricator repository for each one.</p>'));
-      $inset->appendChild(
-        id(new AphrontFormTextControl())
-          ->setName('svn-subpath')
-          ->setLabel('Subpath')
-          ->setValue($repository->getDetail('svn-subpath'))
-          ->setError($e_path));
-    }
-
     if ($is_admin) {
+        $inset = new AphrontFormInsetView();
+        $inset->setTitle('Repository Information');
+
+        if ($has_local) {
+          $default_local_path = '';
+          $default =
+            PhabricatorEnv::getEnvConfig('repository.default-local-path');
+          if (!$repository->getDetail('remote-uri') && $default) {
+            $default_local_path = $default.strtolower($repository->getCallsign());
+          }
+          $inset->appendChild(hsprintf(
+            '<p class="aphront-form-instructions">Select a path on local disk '.
+            'which the daemons should <tt>%s</tt> the repository into. This must '.
+            'be readable and writable by the daemons, and readable by the '.
+            'webserver. The daemons will <tt>%s</tt> and keep this repository up '.
+            'to date.</p>',
+            $clone_command,
+            $fetch_command));
+          $inset->appendChild(
+            id(new AphrontFormTextControl())
+              ->setName('path')
+              ->setLabel('Local Path')
+              ->setValue($repository->getDetail('local-path', $default_local_path))
+              ->setError($e_path));
+        } else if ($is_svn) {
+          $inset->appendChild(hsprintf(
+            '<p class="aphront-form-instructions">If you only want to parse one '.
+            'subpath of the repository, specify it here, relative to the '.
+            'repository root (e.g., <tt>trunk/</tt> or <tt>projects/wheel/</tt>). '.
+            'If you want to parse multiple subdirectories, create a separate '.
+            'Phabricator repository for each one.</p>'));
+          $inset->appendChild(
+            id(new AphrontFormTextControl())
+              ->setName('svn-subpath')
+              ->setLabel('Subpath')
+              ->setValue($repository->getDetail('svn-subpath'))
+              ->setError($e_path));
+        }
+
         if ($has_branch_filter) {
           $branch_filter_str = implode(
             ', ',
@@ -587,9 +591,9 @@ final class PhabricatorRepositoryEditController
               ->setCaption(
                 'Number of seconds daemon should sleep between requests. Larger '.
                 'numbers reduce load but also decrease responsiveness.'));
-    }
 
-    $form->appendChild($inset);
+        $form->appendChild($inset);
+    }
 
     if ($is_admin) {
         $inset = new AphrontFormInsetView();
